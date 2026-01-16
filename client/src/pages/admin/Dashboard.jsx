@@ -5,10 +5,15 @@ import Loading from "../../components/loading";
 import Title from "../../components/admin/Title";
 import BlurCircle from "../../components/BlurCircle";
 import { dateFormat } from "../../lib/dateFormat";
+import { useAppContext } from "../../context/AppContext";
+import { toast } from "react-hot-toast"; // Add this import
 
 const Dashboard = () => {
 
+  const {axios, getToken, user, image_base_url} = useAppContext()
+
   const currency = import.meta.env.VITE_CURRENCY
+
 
   const [dashboardData, setDashboardData] = useState({
     totalBookings: 0,
@@ -43,12 +48,43 @@ const Dashboard = () => {
   ]
 
   const fetchDashboardData = async () => {
-    setDashboardData(dummyDashboardData)
-    setLoading(false)
+    try {
+      const { data } = await axios.get("/api/admin/dashboard", {headers: {
+        Authorization: `Bearer ${await getToken()}`}})
+        
+        console.log("Dashboard API Response:", data); // Debug log
+        console.log("Image Base URL:", image_base_url); // Debug log
+        
+        if(data.success) {
+          console.log("Active Shows Data:", data.dashboardData.activeShows); // Debug log
+          
+          // Log each show's movie data
+          data.dashboardData.activeShows.forEach((show, index) => {
+            console.log(`Show ${index}:`, {
+              id: show._id,
+              movie: show.movie,
+              poster_path: show.movie?.poster_path,
+              full_image_url: show.movie?.poster_path ? `${image_base_url}${show.movie.poster_path}` : 'No poster path'
+            });
+          });
+          
+          setDashboardData(data.dashboardData)
+          setLoading(false)
+        } else {
+          toast.error(data.message)
+        }
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error)
+      toast.error("Error in fetching dashboard data")
+      setLoading(false) // Set loading to false even on error
+    }
   };
+  
   useEffect(() => {
-    fetchDashboardData();
-  }, [])
+    if(user) {
+      fetchDashboardData();
+    }
+  }, [user])
 
 
   return !loading ? (
@@ -95,44 +131,55 @@ const Dashboard = () => {
                 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
   <BlurCircle top="100px" left="-10%" />
 
-  {dashboardData.activeShows.map((show) => (
-    <div
-      key={show._id}
-      className="
-        rounded-lg overflow-hidden
-        bg-primary/10
-        border border-purple-300/30
-        hover:-translate-y-1
-        transition duration-300
-        flex flex-col
-      "
-    >
-      <img
-        src={show.movie.poster_path}
-        alt=""
-        className="h-64 w-full object-cover"
-      />
+  {dashboardData.activeShows && dashboardData.activeShows.length > 0 ? (
+    dashboardData.activeShows.map((show) => (
+      <div
+        key={show._id}
+        className="
+          rounded-lg overflow-hidden
+          bg-primary/10
+          border border-purple-300/30
+          hover:-translate-y-1
+          transition duration-300
+          flex flex-col
+        "
+      >
+        <img
+          src={show.movie?.poster_path ? `${image_base_url}${show.movie.poster_path}` : 'https://via.placeholder.com/300x450?text=No+Image'}
+          alt={show.movie?.title || 'Movie poster'}
+          className="h-64 w-full object-cover bg-gray-800"
+          onError={(e) => {
+            console.error("Image failed to load:", e.target.src);
+            console.error("Show data:", show);
+            e.target.src = 'https://via.placeholder.com/300x450?text=No+Image'; // Fallback image
+          }}
+        />
 
-      <p className="font-medium p-2 truncate">
-        {show.movie.title}
-      </p>
-
-      <div className="flex items-center justify-between px-2">
-        <p className="text-lg font-medium">
-          {currency} {show.showPrice}
+        <p className="font-medium p-2 truncate" title={show.movie?.title || 'Untitled'}>
+          {show.movie?.title || 'Untitled Movie'}
         </p>
 
-        <p className="flex items-center gap-1 text-sm text-gray-400">
-          <StarIcon className="w-4 h-4 text-primary fill-primary" />
-          {show.movie.vote_average.toFixed(1)}
+        <div className="flex items-center justify-between px-2">
+          <p className="text-lg font-medium">
+            {currency} {show.showPrice || 0}
+          </p>
+
+          <p className="flex items-center gap-1 text-sm text-gray-400">
+            <StarIcon className="w-4 h-4 text-primary fill-primary" />
+            {Number(show?.movie?.vote_average || 0).toFixed(1)}
+          </p>
+        </div>
+
+        <p className="px-2 pt-2 pb-2 text-sm text-gray-500">
+          {dateFormat(show.showDateTime)}
         </p>
       </div>
-
-      <p className="px-2 pt-2 text-sm text-gray-500">
-        {dateFormat(show.showDateTime)}
-      </p>
-    </div>
-  ))}
+    ))
+  ) : (
+    <p className="col-span-full text-center text-gray-400 py-8">
+      No active shows available
+    </p>
+  )}
 </div>
 </>
   ) : <Loading />

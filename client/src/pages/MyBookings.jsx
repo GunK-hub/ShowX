@@ -1,33 +1,56 @@
 import React, { useEffect, useState } from "react";
-import { dummyBookingData } from "../assets/assets";
 import Loading from "../components/loading";
 import BlurCircle from "../components/BlurCircle";
 import timeFormat from "../lib/timeFormat";
 import { dateFormat } from "../lib/dateFormat";
+import { useAppContext } from "../context/AppContext";
 
 const MyBookings = () => {
   const currency = import.meta.env.VITE_CURRENCY;
+
+  const { axios, getToken, user, image_base_url } = useAppContext();
 
   const [bookings, setBookings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const getMyBookings = async () => {
-    setBookings(dummyBookingData);
-    setIsLoading(false);
+    try {
+      const { data } = await axios.get("/api/user/bookings", {
+        headers: {
+          Authorization: `Bearer ${await getToken()}`,
+        },
+      });
+
+      if (data.success) {
+        setBookings(data.bookings);
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
-    getMyBookings();
-  }, []);
+    if (user) {
+      getMyBookings();
+    }
+  }, [user]);
 
-  return !isLoading ? (
+  if (isLoading) return <Loading />;
+
+  return (
     <div className="relative px-6 md:px-16 lg:px-40 pt-32 md:pt-40 min-h-[80vh]">
       <BlurCircle top="100px" left="100px" />
       <BlurCircle bottom="0px" left="600px" />
 
       <h1 className="text-lg font-semibold mb-4 text-purple-100">
-        My bookings
+        My Bookings
       </h1>
+
+      {bookings.length === 0 && (
+        <p className="text-purple-300">No bookings found.</p>
+      )}
 
       {bookings.map((item, index) => (
         <div
@@ -41,32 +64,37 @@ const MyBookings = () => {
             rounded-lg p-4 mt-4
           "
         >
-          {/* LEFT: Poster */}
+          {/* Poster */}
           <img
-            src={item.show.movie.poster_path}
-            alt={item.show.movie.title}
+            src={
+              item.show?.movie?.poster_path
+                ? image_base_url + item.show.movie.poster_path
+                : "/placeholder.png"
+            }
+            alt={item.show?.movie?.title}
             className="w-20 h-28 object-cover rounded-md"
           />
 
-          {/* CENTER: Movie info */}
+          {/* Movie Info */}
           <div className="flex flex-col justify-center min-w-0">
             <p className="text-sm font-semibold text-purple-100 truncate">
-              {item.show.movie.title}
+              {item.show?.movie?.title}
             </p>
 
             <p className="text-xs text-purple-300">
-              {timeFormat(item.show.movie.runtime)}
+              {timeFormat(item.show?.movie?.runtime)}
             </p>
 
             <p className="text-xs text-purple-400 mt-1">
-              {dateFormat(item.show.showDateTime)}
+              {dateFormat(item.show?.showDateTime)}
             </p>
           </div>
 
-          {/* RIGHT: Price + CTA + Seats */}
+          {/* Price + Seats */}
           <div className="flex flex-col items-end text-right whitespace-nowrap">
             <p className="text-xl font-semibold text-purple-100">
-              {currency}{item.amount}
+              {currency}
+              {item.amount}
             </p>
 
             {!item.isPaid && (
@@ -83,15 +111,13 @@ const MyBookings = () => {
             )}
 
             <div className="mt-2 text-xs text-purple-300">
-              <p>Total Tickets: {item.bookedSeats.length}</p>
-              <p>Seat Number: {item.bookedSeats.join(", ")}</p>
+              <p>Total Tickets: {item.bookedSeats?.length}</p>
+              <p>Seats: {item.bookedSeats?.join(", ")}</p>
             </div>
           </div>
         </div>
       ))}
     </div>
-  ) : (
-    <Loading />
   );
 };
 

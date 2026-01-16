@@ -12,10 +12,11 @@ const TrailersSection = () => {
       <div className="relative mt-6 aspect-video max-w-[960px] mx-auto">
         <BlurCircle top="-100px" right="-100px" />
         <ReactPlayer
-        key={currentTrailer.videoUrl}   
+        key={currentTrailer.videoUrl}
         url={currentTrailer.videoUrl}
-        playing={true}                  
-        controls={true}                 
+        playing={true}
+        muted={true}      // ✅ ADD THIS
+        controls={true}
         width="960px"
         height="540px"
         className="mx-auto"
