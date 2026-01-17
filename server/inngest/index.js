@@ -4,12 +4,17 @@ import Booking from "../models/Booking.js";
 import Show from "../models/Show.js";
 import sendEmail from "../configs/nodeMailer.js";
 
-// Create Inngest client
-export const inngest = new Inngest({ id: "movie-ticket-booking" });
+// =======================================================
+// CREATE INNGEST CLIENT
+// =======================================================
 
-/* ================================
-   USER SYNC FUNCTIONS (CLERK)
-================================ */
+export const inngest = new Inngest({
+  id: "movie-ticket-booking",
+});
+
+// =======================================================
+// CLERK → USER SYNC FUNCTIONS
+// =======================================================
 
 // ✅ CREATE USER
 const syncUserCreation = inngest.createFunction(
@@ -24,14 +29,12 @@ const syncUserCreation = inngest.createFunction(
       image_url,
     } = event.data;
 
-    const userData = {
+    await User.create({
       _id: id,
-      email: email_addresses[0].email_address,
-      name: `${first_name} ${last_name}`,
+      email: email_addresses?.[0]?.email_address,
+      name: `${first_name ?? ""} ${last_name ?? ""}`.trim(),
       image: image_url,
-    };
-
-    await User.create(userData);
+    });
   }
 );
 
@@ -57,19 +60,17 @@ const syncUserUpdation = inngest.createFunction(
       image_url,
     } = event.data;
 
-    const userData = {
-      email: email_addresses[0].email_address,
-      name: `${first_name} ${last_name}`,
+    await User.findByIdAndUpdate(id, {
+      email: email_addresses?.[0]?.email_address,
+      name: `${first_name ?? ""} ${last_name ?? ""}`.trim(),
       image: image_url,
-    };
-
-    await User.findByIdAndUpdate(id, userData);
+    });
   }
 );
 
-/* ================================
-   RELEASE SEATS IF PAYMENT FAILS
-================================ */
+// =======================================================
+// RELEASE SEATS IF PAYMENT NOT COMPLETED (AFTER 10 MIN)
+// =======================================================
 
 const releaseSeatsAndDeletedBooking = inngest.createFunction(
   { id: "release-seats-delete-booking" },
@@ -85,10 +86,10 @@ const releaseSeatsAndDeletedBooking = inngest.createFunction(
 
       const booking = await Booking.findById(bookingId);
 
-      // ✅ CRITICAL FIX: booking may already be deleted
+      // ❗ booking may already be deleted
       if (!booking) return;
 
-      // ✅ booking already paid → exit safely
+      // ✅ payment completed → do nothing
       if (booking.isPaid) return;
 
       const show = await Show.findById(booking.show);
@@ -98,7 +99,7 @@ const releaseSeatsAndDeletedBooking = inngest.createFunction(
           delete show.occupiedSeats[seat];
         });
 
-        // ✅ FIXED KEY NAME
+        // ✅ correct key
         show.markModified("occupiedSeats");
         await show.save();
       }
@@ -109,51 +110,60 @@ const releaseSeatsAndDeletedBooking = inngest.createFunction(
   }
 );
 
-//ingest function to send email when user books a show
+// =======================================================
+// SEND BOOKING CONFIRMATION EMAIL (ONLY IF PAID)
+// =======================================================
 
 const sendBookingConfirmationEmail = inngest.createFunction(
-  {id: "send-booking-confirmation-email"},
-  {event: "app/show.booked"},
-  async ({event, step}) => {
-    const {bookingId} = event.data;
+  { id: "send-booking-confirmation-email" },
+  { event: "app/show.booked" },
 
-    const booking = await Booking.findById(bookingId).populate({
-      path: 'show',
-      populate: {path: "movie", model: "Movie"}
-    }).populate('user');
+  async ({ event }) => {
+    const { bookingId } = event.data;
+
+    const booking = await Booking.findById(bookingId)
+      .populate({
+        path: "show",
+        populate: { path: "movie", model: "Movie" },
+      })
+      .populate("user");
+
+    // ❗ SAFETY GUARDS (CRITICAL)
+    if (!booking || !booking.user || !booking.show) return;
+    if (!booking.isPaid) return;
 
     await sendEmail({
       to: booking.user.email,
       subject: `Payment Confirmation: "${booking.show.movie.title}" booked!`,
       body: `
-      <div style="font-family: Arial, sans-serif; line-height: 1.6; background:#0f0f0f; color:#ffffff; padding:20px;">
+      <div style="font-family: Arial, sans-serif; background:#0f0f0f; color:#ffffff; padding:20px;">
         <div style="max-width:600px; margin:auto; background:#1c1c1c; padding:24px; border-radius:10px;">
-          
+
           <h2 style="color:#a855f7;">
-            Hi ${booking.user?.name || "there"},
+            Hi ${booking.user.name || "there"},
           </h2>
 
           <p>
-            Your booking for 
+            Your booking for
             <strong style="color:#f84565;">
               ${booking.show.movie.title}
-            </strong> 
+            </strong>
             is confirmed ✅
           </p>
 
           <p>
             <strong>Date:</strong>
-            ${new Date(booking.show.showDateTime).toLocaleDateString(
-              "en-IN",
-              { timeZone: "Asia/Kolkata" }
-            )}
+            ${new Date(booking.show.showDateTime).toLocaleDateString("en-IN", {
+              timeZone: "Asia/Kolkata",
+            })}
             <br/>
 
             <strong>Time:</strong>
-            ${new Date(booking.show.showDateTime).toLocaleTimeString(
-              "en-IN",
-              { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" }
-            )}
+            ${new Date(booking.show.showDateTime).toLocaleTimeString("en-IN", {
+              timeZone: "Asia/Kolkata",
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
           </p>
 
           <p>
@@ -177,19 +187,19 @@ const sendBookingConfirmationEmail = inngest.createFunction(
 
         </div>
       </div>
-      `
-    })
+      `,
+    });
   }
-)
+);
 
-/* ================================
-   EXPORT ALL FUNCTIONS
-================================ */
+// =======================================================
+// EXPORT ALL FUNCTIONS
+// =======================================================
 
 export const functions = [
   syncUserCreation,
   syncUserDeletion,
   syncUserUpdation,
   releaseSeatsAndDeletedBooking,
-  sendBookingConfirmationEmail
+  sendBookingConfirmationEmail,
 ];
