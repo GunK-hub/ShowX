@@ -2,6 +2,7 @@ import { Inngest } from "inngest";
 import User from "../models/User.js";
 import Booking from "../models/Booking.js";
 import Show from "../models/Show.js";
+import sendEmail from "../configs/nodeMailer.js";
 
 // Create Inngest client
 export const inngest = new Inngest({ id: "movie-ticket-booking" });
@@ -108,6 +109,79 @@ const releaseSeatsAndDeletedBooking = inngest.createFunction(
   }
 );
 
+//ingest function to send email when user books a show
+
+const sendBookingConfirmationEmail = inngest.createFunction(
+  {id: "send-booking-confirmation-email"},
+  {event: "app/show.booked"},
+  async ({event, step}) => {
+    const {bookingId} = event.data;
+
+    const booking = await Booking.findById(bookingId).populate({
+      path: 'show',
+      populate: {path: "movie", model: "Movie"}
+    }).populate('user');
+
+    await sendEmail({
+      to: booking.user.email,
+      subject: `Payment Confirmation: "${booking.show.movie.title}" booked!`,
+      body: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; background:#0f0f0f; color:#ffffff; padding:20px;">
+        <div style="max-width:600px; margin:auto; background:#1c1c1c; padding:24px; border-radius:10px;">
+          
+          <h2 style="color:#a855f7;">
+            Hi ${booking.user?.name || "there"},
+          </h2>
+
+          <p>
+            Your booking for 
+            <strong style="color:#f84565;">
+              ${booking.show.movie.title}
+            </strong> 
+            is confirmed ✅
+          </p>
+
+          <p>
+            <strong>Date:</strong>
+            ${new Date(booking.show.showDateTime).toLocaleDateString(
+              "en-IN",
+              { timeZone: "Asia/Kolkata" }
+            )}
+            <br/>
+
+            <strong>Time:</strong>
+            ${new Date(booking.show.showDateTime).toLocaleTimeString(
+              "en-IN",
+              { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" }
+            )}
+          </p>
+
+          <p>
+            <strong>Seats:</strong>
+            ${booking.bookedSeats.join(", ")}
+          </p>
+
+          <p>
+            <strong>Amount Paid:</strong>
+            ₹${booking.amount}
+          </p>
+
+          <hr style="border:0; border-top:1px solid #333; margin:16px 0;" />
+
+          <p>🎬 Enjoy the show!</p>
+
+          <p style="font-size:13px; color:#9ca3af;">
+            Thanks for booking with us,<br/>
+            <strong>ShowX</strong>
+          </p>
+
+        </div>
+      </div>
+      `
+    })
+  }
+)
+
 /* ================================
    EXPORT ALL FUNCTIONS
 ================================ */
@@ -117,4 +191,5 @@ export const functions = [
   syncUserDeletion,
   syncUserUpdation,
   releaseSeatsAndDeletedBooking,
+  sendBookingConfirmationEmail
 ];
