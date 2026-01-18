@@ -54,7 +54,7 @@ const MovieCard = ({ movie, readOnly = false }) => {
             navigate(`/movies/${data?._id}`);
             scrollTo(0, 0);
           }}
-          className="px-4 py-2 text-xs bg-purple-400/90 rounded-full font-medium"
+          className="px-4 py-2 text-xs bg-black rounded-full font-medium"
         >
           Buy tickets
         </button>

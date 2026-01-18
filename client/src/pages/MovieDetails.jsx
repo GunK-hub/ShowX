@@ -100,7 +100,7 @@ const MovieDetails = () => {
 
           {/* Buttons */}
           <div className="flex items-center flex-wrap gap-4 mt-4">
-            <button className="flex items-center gap-2 px-7 py-3 bg-purple-800 hover:bg-purple-900 rounded-md">
+            <button className="flex items-center gap-2 px-7 py-3 bg-green-800 hover:bg-green-900 rounded-md">
               <PlayCircleIcon className="w-5 h-5" />
               Watch Trailer
             </button>
@@ -111,7 +111,7 @@ const MovieDetails = () => {
                   .getElementById("dateSelect")
                   ?.scrollIntoView({ behavior: "smooth" })
               }
-              className="px-10 py-3 bg-purple-800 hover:bg-purple-900 rounded-md"
+              className="px-10 py-3 bg-green-800  hover:bg-green-900 rounded-md"
             >
               Buy Tickets
             </button>
@@ -122,7 +122,7 @@ const MovieDetails = () => {
                 if (!user) return toast.error("Login required");
                 toggleFavoriteLocal(movie);
               }}
-              className="p-3 rounded-md bg-purple-800 hover:bg-pink-500 transition"
+              className="p-3 rounded-md bg-black-800 hover:bg-pink-500 transition"
             >
               <Heart
                 className={`w-5 h-5 ${
@@ -187,7 +187,7 @@ const MovieDetails = () => {
             navigate("/movies");
             scrollTo(0, 0);
           }}
-          className="px-10 py-3 bg-purple-800 hover:bg-purple-900 rounded-md"
+          className="px-10 py-3 bg-green-800 hover:bg-green-900 rounded-md"
         >
           Show More
         </button>

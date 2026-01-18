@@ -4,11 +4,9 @@ import BlurCircle from "../components/BlurCircle";
 import timeFormat from "../lib/timeFormat";
 import { dateFormat } from "../lib/dateFormat";
 import { useAppContext } from "../context/AppContext";
-import { Link } from "react-router-dom";
 
 const MyBookings = () => {
-  const currency = import.meta.env.VITE_CURRENCY;
-
+  const currency = import.meta.env.VITE_CURRENCY || "₹";
   const { axios, getToken, user, image_base_url } = useAppContext();
 
   const [bookings, setBookings] = useState([]);
@@ -23,19 +21,27 @@ const MyBookings = () => {
       });
 
       if (data.success) {
-        setBookings(data.bookings);
+        setBookings(data.bookings || []);
       }
     } catch (error) {
-      console.error(error);
+      console.error("Failed to fetch bookings:", error);
     } finally {
       setIsLoading(false);
     }
   };
 
+  // 🔥 IMPORTANT: refetch after Stripe redirect
   useEffect(() => {
-    if (user) {
+    if (!user) return;
+
+    getMyBookings();
+
+    // Stripe redirects instantly but webhook updates DB async
+    const timer = setTimeout(() => {
       getMyBookings();
-    }
+    }, 2000);
+
+    return () => clearTimeout(timer);
   }, [user]);
 
   if (isLoading) return <Loading />;
@@ -72,14 +78,14 @@ const MyBookings = () => {
                 ? image_base_url + item.show.movie.poster_path
                 : "/placeholder.png"
             }
-            alt={item.show?.movie?.title}
+            alt={item.show?.movie?.title || "Movie"}
             className="w-20 h-28 object-cover rounded-md"
           />
 
           {/* Movie Info */}
           <div className="flex flex-col justify-center min-w-0">
             <p className="text-sm font-semibold text-purple-100 truncate">
-              {item.show?.movie?.title}
+              {item.show?.movie?.title || "Untitled Movie"}
             </p>
 
             <p className="text-xs text-purple-300">
@@ -89,30 +95,43 @@ const MyBookings = () => {
             <p className="text-xs text-purple-400 mt-1">
               {dateFormat(item.show?.showDateTime)}
             </p>
+
+            {/* Status badge */}
+            <span
+              className={`mt-1 text-xs font-medium ${
+                item.isPaid ? "text-green-400" : "text-yellow-400"
+              }`}
+            >
+              {item.isPaid ? "PAID" : "PAYMENT PENDING"}
+            </span>
           </div>
 
-          {/* Price + Seats */}
+          {/* Price + Action */}
           <div className="flex flex-col items-end text-right whitespace-nowrap">
             <p className="text-xl font-semibold text-purple-100">
               {currency}
               {item.amount}
             </p>
 
-            {!item.isPaid && (
-              <Link to={item.PaymentLink}
+            {/* ✅ Pay Now only when REALLY unpaid */}
+            {!item.isPaid && item.PaymentLink && (
+              <a
+                href={item.PaymentLink}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="
                   mt-2 px-4 py-1.5
                   text-sm font-medium rounded-full
-                  bg-purple-600/80 hover:bg-purple-600
+                  bg-green-700/80 hover:bg-green-900
                   transition
                 "
               >
                 Pay Now
-              </Link>
+              </a>
             )}
 
             <div className="mt-2 text-xs text-purple-300">
-              <p>Total Tickets: {item.bookedSeats?.length}</p>
+              <p>Total Tickets: {item.bookedSeats?.length || 0}</p>
               <p>Seats: {item.bookedSeats?.join(", ")}</p>
             </div>
           </div>

@@ -27,7 +27,7 @@ const Navbar = () => {
           z-50 flex flex-col md:flex-row items-center
           gap-6 md:gap-8 px-8 py-3
           rounded-full
-          bg-purple-900/40 backdrop-blur-md
+          bg-green-900/40 backdrop-blur-md
           border border-white/10
           transition-all duration-300
           max-md:w-[90%]

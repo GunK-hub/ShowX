@@ -4,56 +4,49 @@ import { inngest } from "../inngest/index.js";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-export const stripeWebhooks = async (request, response) => {
-  const sig = request.headers["stripe-signature"];
+export const stripeWebhooks = async (req, res) => {
+  const sig = req.headers["stripe-signature"];
   let event;
 
   try {
     event = stripe.webhooks.constructEvent(
-      request.body,
+      req.body,
       sig,
       process.env.STRIPE_WEBHOOK_SECRET
     );
-  } catch (error) {
-    console.error("Webhook signature error:", error.message);
-    return response.status(400).send(`Webhook Error: ${error.message}`);
+  } catch (err) {
+    console.error("❌ Stripe signature error:", err.message);
+    return res.status(400).send("Webhook signature failed");
   }
 
   try {
-    // ✅ CORRECT EVENT FOR STRIPE CHECKOUT
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
       const bookingId = session.metadata?.bookingId;
 
-      if (!bookingId) {
-        return response.json({ received: true });
-      }
+      if (!bookingId) return res.json({ received: true });
 
-      // ✅ Fetch booking safely
       const booking = await Booking.findById(bookingId);
 
-      // Booking already handled or deleted
       if (!booking || booking.isPaid) {
-        return response.json({ received: true });
+        return res.json({ received: true });
       }
 
-      // ✅ Mark booking as paid
       booking.isPaid = true;
       booking.PaymentLink = "";
       await booking.save();
 
-      // ✅ Send Inngest event ONCE
       await inngest.send({
         name: "app/show.booked",
-        data: {
-          bookingId: booking._id.toString(),
-        },
+        data: { bookingId: booking._id.toString() },
       });
+
+      console.log("✅ Booking marked as PAID:", bookingId);
     }
 
-    response.json({ received: true });
+    res.json({ received: true });
   } catch (err) {
-    console.error("Webhook processing error:", err);
-    response.status(500).send("Internal server error");
+    console.error("❌ Webhook error:", err);
+    res.status(500).send("Webhook processing error");
   }
 };

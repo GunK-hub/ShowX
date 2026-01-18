@@ -184,7 +184,7 @@ const renderSeats = (row, count = 9) => {
         ))}
       </div>
     </div> 
-     <button onClick={bookTickets}className='flex items-center gap-1 mt-20 px-10 py-3 text-sm bg-primary hover:bg-primary-dull transition rounded-full font-medium cursor-pointer active:scale-95 bg-purple-600'>
+     <button onClick={bookTickets}className='flex items-center gap-1 mt-20 px-10 py-3 text-sm bg-primary hover:bg-primary-dull transition rounded-full font-medium cursor-pointer active:scale-95 bg-green-800'>
       Proceed to Checkout
       <ArrowRightIcon strokeWidth={3} className="w-4 h-4" />
      </button>

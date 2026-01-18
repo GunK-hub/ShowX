@@ -77,7 +77,7 @@ const DateSelect = ({ dateTime, id }) => {
           className={`px-8 py-3 rounded-lg font-medium transition-all
             ${
               activeDate
-                ? "bg-purple-800 text-white hover:bg-purple-900"
+                ? "bg-black text-white hover:bg-green-900"
                 : "bg-white/20 text-white/50 cursor-not-allowed"
             }`}
         >

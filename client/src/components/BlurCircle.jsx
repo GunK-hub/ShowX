@@ -6,7 +6,7 @@ const BlurCircle = ({ top = "auto", left = "auto", right = "auto", bottom = "aut
         z-0
         h-80 w-80
         rounded-full
-        bg-purple-500/40
+        bg-green-500/40
         blur-[120px]
         pointer-events-none
       "
